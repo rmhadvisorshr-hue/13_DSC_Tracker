@@ -1,0 +1,6 @@
+{
+  "appId": "com.rmhadvisors.dsctracker",
+  "appName": "DSC Tracker",
+  "webDir": "dist-mobile",
+  "server": { "androidScheme": "https" }
+}

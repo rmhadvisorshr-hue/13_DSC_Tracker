@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+cryptography>=42
+pandas
+openpyxl
+requests
+PyKCS11

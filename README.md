@@ -66,3 +66,5 @@ npx cap open android            # Android Studio: Build > Build APK(s)  -> DSC_T
 ```
 Preview the phone UI in a browser: `npx vite --mode mobile`.
 # 13_DSC_Tracker
+neon on the rmhadvisorsstaff@gmail.com
+github on the rmh.advisors.hr@gmail.com
