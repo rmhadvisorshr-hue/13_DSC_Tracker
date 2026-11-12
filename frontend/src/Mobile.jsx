@@ -1,5 +1,7 @@
 // Read-only phone view for Sir (VITE_APP_MODE=mobile): talks straight to cloud_api, no USB panel.
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Capacitor } from '@capacitor/core'
+import { PushNotifications } from '@capacitor/push-notifications'
 import { LogOut, MessageCircle, RefreshCw, Search } from 'lucide-react'
 import Login from './Login.jsx'
 import { Badge, TABS, filterRecords, failText, input, whatsappUrl } from './shared.jsx'
@@ -10,6 +12,26 @@ const store = {
   get: () => { try { return localStorage.getItem(KEY) || '' } catch { return '' } },
   set: (v) => { try { v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY) } catch { /* storage blocked */ } },
 }
+const FCM_KEY = 'dsc_fcm'
+const label = () => 'Android ' + (navigator.userAgent.match(/Android [d.]+; ([^)]+))/)?.[1] || '')
+
+// Ask permission, get the FCM token, register it with cloud_api. Safe no-op in a plain browser.
+async function enablePush(token, { onTap, onForeground }) {
+  if (!Capacitor.isNativePlatform()) return
+  await PushNotifications.removeAllListeners()
+  await PushNotifications.addListener('registration', async ({ value }) => {
+    try {
+      await cloud('/devices/register', token, { method: 'POST', body: JSON.stringify({ fcm_token: value, device_label: label() }) })
+      localStorage.setItem(FCM_KEY, value)
+    } catch { /* retried on next app start */ }
+  })
+  await PushNotifications.addListener('registrationError', (e) => console.warn('FCM registration failed', e))
+  await PushNotifications.addListener('pushNotificationReceived', (n) => onForeground(n)) // app open
+  await PushNotifications.addListener('pushNotificationActionPerformed', (a) => onTap(a.notification.data)) // tapped
+  const perm = await PushNotifications.requestPermissions()
+  if (perm.receive === 'granted') await PushNotifications.register()
+}
+
 const netMsg = (e) => (e.message === 'Failed to fetch' ? 'No internet connection' : e.message)
 
 async function cloud(path, token, opts = {}) {
@@ -27,12 +49,30 @@ export default function Mobile() {
   const [err, setErr] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const logout = () => { store.set(''); setToken(''); setRecords([]) }
+  const [banner, setBanner] = useState(null)
+
+  const logout = () => {
+    try { // stop alerts to this phone
+      const f = localStorage.getItem(FCM_KEY)
+      if (f && token) cloud('/devices/unregister', token, { method: 'POST', body: JSON.stringify({ fcm_token: f }) }).catch(() => {})
+      localStorage.removeItem(FCM_KEY)
+    } catch { /* storage blocked */ }
+    store.set(''); setToken(''); setRecords([])
+  }
   const load = useCallback(async () => {
     setLoading(true); setErr('')
     try { setRecords(await cloud('/records', token)) } catch (e) { e.auth ? logout() : setErr(netMsg(e)) } finally { setLoading(false) }
   }, [token])
   useEffect(() => { if (token) load() }, [token, load])
+  useEffect(() => {
+    if (!token) return
+    enablePush(token, {
+      onTap: () => { setQ(''); setTab('expiring'); load() }, // open straight to the expiring view
+      onForeground: (n) => { setBanner(`${n.title}
+${n.body}`); load() },
+    }).catch((e) => console.warn('push setup failed', e))
+  }, [token, load])
+  useEffect(() => { if (banner) { const t = setTimeout(() => setBanner(null), 8000); return () => clearTimeout(t) } }, [banner])
 
   const shown = useMemo(() => filterRecords(records, q, tab), [records, q, tab])
 
@@ -61,6 +101,9 @@ export default function Mobile() {
           <button key={k} onClick={() => setTab(k)} className={`flex-1 whitespace-nowrap px-3 py-2 ${tab === k ? 'bg-blue-600 text-white' : 'bg-white text-slate-700'}`}>{l}</button>
         ))}
       </div>
+      {banner && (
+        <button onClick={() => { setBanner(null); setQ(''); setTab('expiring') }} className="w-full whitespace-pre-line rounded-md bg-amber-100 px-3 py-2 text-left text-sm font-medium text-amber-900">{banner}</button>
+      )}
       {err && <p className="rounded bg-red-100 px-3 py-2 text-sm text-red-800">{err}</p>}
       {shown.map((r) => (
         <div key={r.serial_number} className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">

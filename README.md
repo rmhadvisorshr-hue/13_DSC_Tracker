@@ -53,18 +53,32 @@ cd ..\backend
 Ship `DSC_Tracker.exe` (+ optional `.env` with `CLOUD_API_URL`). `dsc_tracker.db` is created beside it. Back it up. Python bitness must match the token driver DLL (`System32` = 64-bit).
 Token PINs are **not stored anywhere** (reading a token needs no PIN).
 
-## 4. Android app
-Needs Android Studio (SDK + JDK 17+).
+## 4. Push alerts (Firebase) + Android app
+The Capacitor project lives at **`13_DSC_Tracker/android/`** (not inside `frontend/`; see `android.path` in `frontend/capacitor.config.json`).
+
+**Firebase (once)**
+1. console.firebase.google.com → Add project (no Analytics needed) → **Add app → Android**, package name **`com.rmhadvisors.dsctracker`** → download **`google-services.json`** → put it at `13_DSC_Tracker\android\app\google-services.json`.
+2. Project settings → **Service accounts → Generate new private key** → a `.json` file. Open it, copy the **whole content**.
+3. Render → `dsc-tracker-api` → Environment, add:
+   - `FIREBASE_SERVICE_ACCOUNT_JSON` = the whole JSON (paste as is)
+   - `CRON_SECRET` = a long random string (`python -c "import secrets;print(secrets.token_urlsafe(32))"`)
+4. GitHub repo → Settings → Secrets and variables → Actions → add `CLOUD_API_URL` (`https://dsc-tracker-api.onrender.com`) and `CRON_SECRET` (same value as Render).
+
+**How alerts work:** every day at 09:30 IST (`.github/workflows/daily-dsc-alerts.yml`, cron `0 4 * * *`) GitHub calls `POST /notifications/send-daily`. `cloud_api` finds DSCs with 30, 7, 1 or 0 days left (IST) and sends one push per DSC to every phone that logged in (title e.g. "⚠️ DSC Expiring in 7 Days", body "Name — Box A - 14 — expires 19 Nov 2026"). Tapping it opens the app on the *Expiring Soon* tab. Dead tokens are deleted automatically; logging out of the app unregisters the phone.
+Test now: Actions tab → *Daily DSC expiry alerts* → **Run workflow**, or call `POST /notifications/test` with the app's login token.
+
+**Build the APK**
 ```
-cd frontend
-# set VITE_CLOUD_API_URL in frontend/.env.mobile first
+cd 13_DSC_Tracker\frontend
 npm install
-npm run build:mobile            # -> dist-mobile (phone UI: search, tabs, box/slot, WhatsApp button; no USB panel)
-npx cap add android             # first time only
-npm run cap:sync                # rebuild + copy into android/
-npx cap open android            # Android Studio: Build > Build APK(s)  -> DSC_Tracker apk
+npm run build:mobile
+npx cap sync android            # copies dist-mobile into ..\android
+cd ..\android
+gradlew.bat assembleDebug       # or: cd ..\frontend && npx cap open android -> Build > Build APK(s)
 ```
-Preview the phone UI in a browser: `npx vite --mode mobile`.
-# 13_DSC_Tracker
-neon on the rmhadvisorsstaff@gmail.com
+Output: `13_DSC_Tracker\android\app\build\outputs\apk\debug\app-debug.apk`. Needs Android Studio (JDK 17+ and the Android SDK). Preview the phone UI in a browser (no push): `npx vite --mode mobile`.
+
+firebase is on the rmhadvisors.tech@gmail.com
+neon on the rmhadvisorsstaff@gmail.com 
 github on the rmh.advisors.hr@gmail.com
+dsc-tracker-api on the rmh.advisors.hr@gmail.com

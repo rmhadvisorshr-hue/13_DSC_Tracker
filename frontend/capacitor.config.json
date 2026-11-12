@@ -2,5 +2,7 @@
   "appId": "com.rmhadvisors.dsctracker",
   "appName": "DSC Tracker",
   "webDir": "dist-mobile",
-  "server": { "androidScheme": "https" }
+  "android": { "path": "../android" },
+  "server": { "androidScheme": "https" },
+  "plugins": { "PushNotifications": { "presentationOptions": ["badge", "sound", "alert"] } }
 }
