@@ -13,7 +13,7 @@ const store = {
   set: (v) => { try { v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY) } catch { /* storage blocked */ } },
 }
 const FCM_KEY = 'dsc_fcm'
-const label = () => 'Android ' + (navigator.userAgent.match(/Android [d.]+; ([^)]+))/)?.[1] || '')
+const label = () => 'Android ' + (navigator.userAgent.match(/Android [\d.]+; ([^)]+)\)/)?.[1] || '')
 
 // Ask permission, get the FCM token, register it with cloud_api. Safe no-op in a plain browser.
 async function enablePush(token, { onTap, onForeground }) {
