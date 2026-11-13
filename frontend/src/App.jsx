@@ -7,7 +7,7 @@ import Login from './Login.jsx'
 import { Badge, TABS, filterRecords, failText, input, whatsappUrl } from './shared.jsx'
 
 // dev: Vite on :5173 talks to the backend on :8000; production build is served by the backend itself (relative URLs)
-const API = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:8000' : '')
+const API = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '')
 const EMPTY = { box_slot: '', client_phone: '', status: 'In Office', notes: '' }
 const ROW = { 'Expiring Soon': 'bg-amber-50', Expired: 'bg-red-50' }
 

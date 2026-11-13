@@ -62,7 +62,7 @@ The Capacitor project lives at **`13_DSC_Tracker/android/`** (not inside `fronte
 3. Render → `dsc-tracker-api` → Environment, add:
    - `FIREBASE_SERVICE_ACCOUNT_JSON` = the whole JSON (paste as is)
    - `CRON_SECRET` = a long random string (`python -c "import secrets;print(secrets.token_urlsafe(32))"`)
-4. GitHub repo → Settings → Secrets and variables → Actions → add `CLOUD_API_URL` (`https://dsc-tracker-api.onrender.com`) and `CRON_SECRET` (same value as Render).
+4. GitHub repo → Settings → Secrets and variables → Actions → add `CLOUD_API_URL` (`https://one4-rmh-alerts-hub.onrender.com`) and `CRON_SECRET` (same value as Render).
 
 **How alerts work:** every day at 09:30 IST (`.github/workflows/daily-dsc-alerts.yml`, cron `0 4 * * *`) GitHub calls `POST /notifications/send-daily`. `cloud_api` finds DSCs with 30, 7, 1 or 0 days left (IST) and sends one push per DSC to every phone that logged in (title e.g. "⚠️ DSC Expiring in 7 Days", body "Name — Box A - 14 — expires 19 Nov 2026"). Tapping it opens the app on the *Expiring Soon* tab. Dead tokens are deleted automatically; logging out of the app unregisters the phone.
 Test now: Actions tab → *Daily DSC expiry alerts* → **Run workflow**, or call `POST /notifications/test` with the app's login token.
