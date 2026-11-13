@@ -23,7 +23,7 @@ def _load_env(path: Path) -> None:
 _load_env(_HERE / ".env")
 
 # --- Cloud sync: the .exe talks only to our cloud_api (never to Neon directly) ---
-CLOUD_API_URL = os.getenv("CLOUD_API_URL", "https://dsc-tracker-api.onrender.com").rstrip("/")  # set in .env to override
+CLOUD_API_URL = os.getenv("CLOUD_API_URL", "https://one4-rmh-alerts-hub.onrender.com").rstrip("/")  # set in .env to override
 CLOUD_TIMEOUT = 60  # free hosts sleep when idle; the first request can take ~50 s to wake them
 
 FIELDS = ["serial_number", "holder_name", "issuer", "issue_date", "expiry_date",
