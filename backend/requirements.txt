@@ -5,3 +5,5 @@ pandas
 openpyxl
 requests
 PyKCS11
+pystray
+Pillow

@@ -137,6 +137,10 @@ def auth_login(b: Login):
         raise HTTPException(401, str(e))
     except Exception as e:
         raise HTTPException(502, "Cannot reach the cloud server: " + _net_err(e))
+    try:
+        db.pull_from_cloud()  # fresh install fills up immediately; a pull failure must not fail the login
+    except Exception:
+        pass
     return db.auth_status()
 
 
@@ -176,7 +180,8 @@ def delete_record(serial_number: str):
 @app.post("/api/sync")
 def sync():
     try:
-        return {"synced": db.sync_to_cloud()}
+        pushed = db.sync_to_cloud()  # deletes first, then push
+        return {"synced": pushed, "pulled": db.pull_from_cloud()}
     except (RuntimeError, PermissionError) as e:
         raise HTTPException(401 if isinstance(e, PermissionError) else 400, str(e))
     except Exception as e:
@@ -212,7 +217,50 @@ _DIST = (Path(sys._MEIPASS) / "dist") if getattr(sys, "frozen", False) else Path
 if _DIST.is_dir():
     app.mount("/", StaticFiles(directory=_DIST, html=True), name="frontend")  # html=True serves index.html at /
 
+URL = "http://127.0.0.1:8000"
+
+
+def open_ui():
+    """Edge/Chrome in standalone --app window; falls back to the default browser."""
+    import os, shutil, subprocess
+    pf = [os.environ.get(k, "") for k in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA")]
+    for rel in (r"Microsoft\Edge\Application\msedge.exe", r"Google\Chrome\Application\chrome.exe"):
+        for base in pf:
+            exe = os.path.join(base, rel)
+            if base and os.path.isfile(exe):
+                subprocess.Popen([exe, f"--app={URL}"])
+                return
+    webbrowser.open(URL)
+
+
 if __name__ == "__main__":
+    import socket
     import uvicorn
-    threading.Timer(1.5, webbrowser.open, ["http://127.0.0.1:8000"]).start()
-    uvicorn.run(app, host="127.0.0.1", port=8000)  # loopback only: no other device can reach it
+    import pystray
+    from PIL import Image, ImageDraw
+
+    # single instance: if port 8000 is taken, the app is already running -> just open the UI
+    probe = socket.socket()
+    try:
+        probe.bind(("127.0.0.1", 8000))
+    except OSError:
+        open_ui()
+        sys.exit(0)
+    finally:
+        probe.close()
+
+    # windowed exe has no stdout/stderr; uvicorn's default logging would crash on them
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=8000, log_config=None))  # loopback only
+    threading.Thread(target=server.run, daemon=True).start()
+
+    icon_img = Image.new("RGB", (64, 64), "#1d4ed8")
+    ImageDraw.Draw(icon_img).text((14, 24), "DSC", fill="white")
+    tray = pystray.Icon(
+        "DSC Tracker", icon_img, "DSC Tracker",
+        pystray.Menu(
+            pystray.MenuItem("Open DSC Tracker", lambda: open_ui(), default=True),
+            pystray.MenuItem("Exit", lambda: (setattr(server, "should_exit", True), tray.stop())),
+        ),
+    )
+    threading.Timer(1.5, open_ui).start()
+    tray.run()

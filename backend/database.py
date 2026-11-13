@@ -135,3 +135,15 @@ def sync_to_cloud(rows: list[dict] | None = None) -> int:
     if rows:
         _cloud("POST", "/records/upsert", json=rows)
     return len(rows)
+
+
+def pull_from_cloud() -> int:
+    """Upsert every cloud record into local SQLite (cloud's updated_at kept), skipping serials with a queued delete."""
+    if not is_logged_in():
+        raise RuntimeError("Not logged in to the cloud. Log in first.")
+    recs = _cloud("GET", "/records").json()
+    with _conn() as c:
+        skip = {r[0] for r in c.execute("SELECT serial_number FROM pending_deletes")}
+        rows = [[str(rec.get(f) or "") for f in FIELDS] for rec in recs if rec.get("serial_number") not in skip]
+        c.executemany(f"INSERT OR REPLACE INTO dsc ({_COLS}) VALUES ({','.join('?' * len(FIELDS))})", rows)
+    return len(rows)
